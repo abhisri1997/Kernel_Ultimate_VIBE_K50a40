@@ -56,6 +56,9 @@
 #include <mach/battery_common.h>
 #include <mach/charging.h>
 #include "cust_charging.h"
+#ifdef CONFIG_THUNDERCHARGE_CONTROL
+#include "thundercharge_control.h"
+#endif
 #include <mach/mt_boot.h>
 #include <linux/delay.h>
 #include <mach/battery_meter.h>
@@ -826,13 +829,34 @@ void select_charging_curret(void)
 			}
 #else
 			{
-				g_temp_CC_value = batt_cust_data.usb_charger_current;
-			}
+			#ifdef CONFIG_THUNDERCHARGE_CONTROL
+				if(mswitch)
+					g_temp_CC_value = custom_usb_current;
+				else
+					g_temp_CC_value = batt_cust_data.usb_charger_current;
+			#else
+					g_temp_CC_value = batt_cust_data.usb_charger_current;
+			#endif
+				}
 #endif
 		} else if (BMT_status.charger_type == NONSTANDARD_CHARGER) {
+#ifdef CONFIG_THUNDERCHARGE_CONTROL
+			if(mswitch)
+			g_temp_CC_value = custom_ac_current;
+			else	
 			g_temp_CC_value = batt_cust_data.non_std_ac_charger_current;
+		#else
+			g_temp_CC_value = batt_cust_data.non_std_ac_charger_current;
+#endif
 		} else if (BMT_status.charger_type == STANDARD_CHARGER) {
+#ifdef CONFIG_THUNDERCHARGE_CONTROL
+			if(mswitch)	
+			g_temp_CC_value = custom_ac_current;
+			else		
 			g_temp_CC_value = batt_cust_data.ac_charger_current;
+		#else
+			g_temp_CC_value = batt_cust_data.ac_charger_current;
+#endif			
 #if defined(CONFIG_MTK_PUMP_EXPRESS_SUPPORT)
 			if(is_ta_connect == KAL_TRUE && ta_vchr_tuning == KAL_TRUE)
 				g_temp_CC_value = CHARGE_CURRENT_1500_00_MA;

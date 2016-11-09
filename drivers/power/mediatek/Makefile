@@ -10,6 +10,9 @@ ifeq ($(CONFIG_LENOVO_CHARGING_STANDARD_SUPPORT),y)
     obj-$(CONFIG_MTK_SMART_BATTERY) += lenovo_charging.o
 endif
 
+ifeq ($(CONFIG_THUNDERCHARGE_SUPPORT),y)
+	obj-$(CONFIG_THUNDERCHARGE_CONTROL) += thundercharge_control.o
+endif
 ifeq ($(CONFIG_MTK_FAN5402_SUPPORT),y)
     obj-$(CONFIG_MTK_SMART_BATTERY) += switch_charging.o
 else ifeq ($(CONFIG_MTK_FAN5405_SUPPORT),y)
