@@ -172,3 +172,9 @@ config MTK_CONN_LTE_IDC_SUPPORT
 	default y
 	help
 	  This option enables CONN LTE IDC support
+
+config MTK_WIFI_PM_CONTROL
+    tristate "Mediatek Wi-Fi PM Control"
+    default n
+    help
+    Interface to control Wi-Fi Power Saver Modes
