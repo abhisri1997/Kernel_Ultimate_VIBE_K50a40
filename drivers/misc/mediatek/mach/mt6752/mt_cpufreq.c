@@ -271,86 +271,8 @@ unsigned int AllowTurboMode = 0;
 #ifdef __KERNEL__
 static unsigned int _mt_cpufreq_get_cpu_level(void)
 {
-    unsigned int lv = 0;
-    unsigned int func_code_0 = _GET_BITS_VAL_(27 : 24, get_devinfo_with_index(FUNC_CODE_EFUSE_INDEX));
-    unsigned int func_code_1 = _GET_BITS_VAL_(31 : 28, get_devinfo_with_index(FUNC_CODE_EFUSE_INDEX));
+    return CPU_LEVEL_0;
 
-    cpufreq_info("from efuse: function code 0 = 0x%x, function code 1 = 0x%x\n", func_code_0, func_code_1);
-
-    /* get CPU clock-frequency from DT */
-#ifdef CONFIG_OF
-    {
-        struct device_node *node = of_find_node_by_type(NULL, "cpu");
-        unsigned int cpu_speed = 0;
-		unsigned int cpu_speed_bounding = _GET_BITS_VAL_(3 : 0, get_devinfo_with_index(CPUFREQ_EFUSE_INDEX));
-
-		switch (cpu_speed_bounding) {
-			case 0:
-			case 1:
-			case 2:
-				AllowTurboMode = 0; /* 1.69 * 1.1 = 1.859G */
-				break;
-
-			default:
-				AllowTurboMode = 0;
-				break;
-		}
-		cpufreq_info("current CPU efuse is %d, AllowTurboMode=%d\n", cpu_speed_bounding, AllowTurboMode);
-
-        if (!of_property_read_u32(node, "clock-frequency", &cpu_speed))
-            cpu_speed = cpu_speed / 1000 / 1000;    // MHz
-        else {
-            cpufreq_err("@%s: missing clock-frequency property, use default CPU level\n", __func__);
-            return CPU_LEVEL_1;
-        }
-
-        cpufreq_info("CPU clock-frequency from DT = %d MHz\n", cpu_speed);
-
-        if (cpu_speed >= 1700)
-            lv = CPU_LEVEL_1;   // 1.7G
-        else if (cpu_speed >= 1500)
-            lv = CPU_LEVEL_2;   // 1.5G
-        else if (cpu_speed >= 1300)
-            lv = CPU_LEVEL_3;   // 1.3G
-        else {
-            cpufreq_err("No suitable DVFS table, set to default CPU level! clock-frequency=%d\n", cpu_speed);
-            lv = CPU_LEVEL_1;
-        }
-    }
-#else   /* CONFIG_OF */
-    /* no DT, we should check efuse for CPU speed HW bounding */
-    {
-        unsigned int cpu_speed_bounding = _GET_BITS_VAL_(3 : 0, get_devinfo_with_index(CPUFREQ_EFUSE_INDEX));
-
-        cpufreq_info("No DT, get CPU frequency bounding from efuse = %x\n", cpu_speed_bounding);
-
-        switch (cpu_speed_bounding) {
-            case 0:
-            case 1:
-            case 2:
-				AllowTurboMode = 0; /* 1.69 * 1.1 = 1.859G */
-            case 3:
-            case 4:
-                lv = CPU_LEVEL_1;   // 1.7G
-                break;
-            case 5:
-            case 6:
-                lv = CPU_LEVEL_2;   // 1.5G
-                break;
-            case 7:
-            case 8:
-                lv = CPU_LEVEL_3;   // 1.3G
-                break;
-            default:
-                cpufreq_err("No suitable DVFS table, set to default CPU level! efuse=0x%x\n", cpu_speed_bounding);
-                lv = CPU_LEVEL_1;
-                break;
-        }
-		cpufreq_info("current CPU efuse is %d, AllowTurboMode=%d\n", cpu_speed_bounding, AllowTurboMode);
-    }
-#endif
-
-    return lv;
 }
 #else
 static unsigned int _mt_cpufreq_get_cpu_level(void)
@@ -1081,7 +1003,7 @@ static struct opp_tbl_info opp_tbls[] = {
 /* for freq change (PLL/MUX) */
 #define PLL_FREQ_STEP		(13000)		/* KHz */
 
-// #define PLL_MAX_FREQ		(1989000)	/* KHz */ // TODO: check max freq
+#define PLL_MAX_FREQ		(1989000)	/* KHz */ // TODO: check max freq
 #define PLL_MIN_FREQ		(130000)	/* KHz */
 #define PLL_DIV1_FREQ		(1001000)	/* KHz */
 #define PLL_DIV2_FREQ		(520000)	/* KHz */
