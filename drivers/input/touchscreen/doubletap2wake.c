@@ -4,8 +4,6 @@
  *
  * Copyright (c) 2013, Dennis Rassmann <showp1984@gmail.com>
  * Copyright (c) 2015, Vineeth Raj <contact.twn@openmailbox.org>
- * Copyright (c) 2015, Swapnil Solanki <swapnil133609@gmail.com>
- * Copyright (c) 2015, Levin Calado <levincalado@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +32,7 @@
 #include <linux/hrtimer.h>
 #include <asm-generic/cputime.h>
 #include <linux/input/doubletap2wake.h>
-#include <linux/input/tap2unlock.h>
+#include <linux/input/sweep2wake.h>
 
 /* uncomment since no touchscreen defines android touch, do that here */
 //#define ANDROID_TOUCH_DECLARED
@@ -52,11 +50,6 @@
 /* if Sweep2Wake is compiled it will already have taken care of this */
 #ifdef CONFIG_TOUCHSCREEN_SWEEP2WAKE
 #define ANDROID_TOUCH_DECLARED
-#endif
-
-/* Pocket_Mod Support */
-#ifdef CONFIG_POCKETMOD
-#include <linux/pocket_mod.h>
 #endif
 
 /* Version, author, desc, etc */
@@ -78,6 +71,16 @@ MODULE_LICENSE("GPLv2");
 #define DT2W_FEATHER      50
 #define DT2W_TIME        600
 
+/* Wake Gestures */
+#define WAKE_GESTURE		0x0b
+#define TRIGGER_TIMEOUT		50
+
+extern struct vib_trigger *vib_trigger;
+static struct input_dev *gesture_dev;
+extern int gestures_switch;
+extern void set_vibrate(int value);
+extern int vib_strength;
+
 /* Resources */
 int dt2w_switch = DT2W_DEFAULT;
 static cputime64_t tap_time_pre = 0;
@@ -85,6 +88,7 @@ static int touch_x = 0, touch_y = 0, touch_nr = 0, x_pre = 0, y_pre = 0;
 static bool touch_x_called = false, touch_y_called = false, touch_cnt = true;
 static bool exec_count = true;
 bool dt2w_scr_suspended = false;
+static unsigned long pwrtrigger_time[2] = {0, 0};
 #ifndef WAKE_HOOKS_DEFINED
 #ifndef CONFIG_HAS_EARLYSUSPEND
 static struct notifier_block dt2w_lcd_notif;
@@ -117,6 +121,27 @@ static int __init read_dt2w_cmdline(char *dt2w)
 }
 __setup("dt2w=", read_dt2w_cmdline);
 
+/* Wake Gestures */
+void gestures_setdev(struct input_dev *input_device)
+{
+	gesture_dev = input_device;
+	return;
+}
+
+static void report_gesture(int gest)
+{
+        pwrtrigger_time[1] = pwrtrigger_time[0];
+        pwrtrigger_time[0] = jiffies;	
+
+	if (pwrtrigger_time[0] - pwrtrigger_time[1] < TRIGGER_TIMEOUT)
+		return;
+
+	printk("WG: gesture = %d\n", gest);
+	input_report_rel(gesture_dev, WAKE_GESTURE, gest);
+	input_sync(gesture_dev);
+}
+
+
 /* reset on finger release */
 static void doubletap2wake_reset(void) {
 	exec_count = true;
@@ -143,6 +168,12 @@ static DECLARE_WORK(doubletap2wake_presspwr_work, doubletap2wake_presspwr);
 
 /* PowerKey trigger */
 static void doubletap2wake_pwrtrigger(void) {
+	 pwrtrigger_time[1] = pwrtrigger_time[0];
+        pwrtrigger_time[0] = jiffies;	
+
+	if (pwrtrigger_time[0] - pwrtrigger_time[1] < TRIGGER_TIMEOUT)
+		return;
+
 	schedule_work(&doubletap2wake_presspwr_work);
 	return;
 }
@@ -176,34 +207,42 @@ static void detect_doubletap2wake(int x, int y, bool st)
 		touch_cnt = false;
 		if (touch_nr == 0) {
 			new_touch(x, y);
-		} else {
+		} else if (touch_nr == 1) {
 			if ((calc_feather(x, x_pre) < DT2W_FEATHER) &&
 			    (calc_feather(y, y_pre) < DT2W_FEATHER) &&
-			    ((ktime_to_ms(ktime_get())-tap_time_pre) < DT2W_TIME)) {
-				pr_info(LOGTAG"ON\n");
-				exec_count = false;
-				doubletap2wake_pwrtrigger();
-				doubletap2wake_reset();
-                        }
-
+			    ((ktime_to_ms(ktime_get())-tap_time_pre) < DT2W_TIME))
+				touch_nr++;
 			else {
 				doubletap2wake_reset();
 				new_touch(x, y);
 			}
-
+		} else {
+			doubletap2wake_reset();
+			new_touch(x, y);
+		}
+		if ((touch_nr > 1)) {
+			/*pr_info(LOGTAG"ON\n");
+			exec_count = false;
+			doubletap2wake_pwrtrigger();
+			doubletap2wake_reset();*/
+			pr_info(LOGTAG"double tap\n");
+			exec_count = false;
+			//set_vibrate(vib_strength);
+			if (gestures_switch) {
+				report_gesture(5);
+			} else {
+				doubletap2wake_pwrtrigger();
+			}
+			doubletap2wake_reset();
 		}
 	}
 }
 
 static void dt2w_input_callback(struct work_struct *unused) {
-	#ifdef CONFIG_POCKETMOD
-	if (device_is_pocketed()){
-		return;
-	}
-	else
-	#endif
+//avoid button presses being recognized as touches
+	if (touch_y < 1920) {
 	detect_doubletap2wake(touch_x, touch_y, true);
-
+}
 	return;
 }
 
@@ -216,10 +255,7 @@ static void dt2w_input_event(struct input_handle *handle, unsigned int type,
 		((code==ABS_MT_TRACKING_ID)||
 			(code==330)) ? "ID" : "undef"), code, value);
 #endif
-	if (!dt2w_scr_suspended )
-		return;
-
-	if (t2u_switch > 0)
+	if (!dt2w_scr_suspended)
 		return;
 
 	if (code == ABS_MT_SLOT) {

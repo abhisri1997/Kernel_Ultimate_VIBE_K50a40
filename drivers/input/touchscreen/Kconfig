@@ -1035,10 +1035,11 @@ config TOUCHSCREEN_DOUBLETAP2WAKE
 	select TOUCHSCREEN_PREVENT_SLEEP
 	default n
 
-config TOUCHSCREEN_TAP2UNLOCK
-	tristate "Tap to unlock for touchscreens"
-	select TOUCHSCREEN_PREVENT_SLEEP
-	default y
+config TOUCHSCREEN_PREVENT_SLEEP
+ 	bool "Inihibit sleep on modified touchscreen drivers"
+ 	default n
+ 	help
+ 	  This disables the sleep function of modified touchscreen drivers.
 
 config TOUCHSCREEN_SYNAPTICS_S3528
 	tristate "Synaptics S7020 touchscreen"

@@ -30,17 +30,11 @@
 #include <linux/fb.h>
 
 #ifdef CONFIG_TOUCHSCREEN_PREVENT_SLEEP
-#ifdef CONFIG_HAS_EARLYSUSPEND
-#include <linux/earlysuspend.h>
-#endif
 #ifdef CONFIG_TOUCHSCREEN_SWEEP2WAKE
 #include <linux/input/sweep2wake.h>
 #endif
 #ifdef CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE
 #include <linux/input/doubletap2wake.h>
-#endif
-#ifdef CONFIG_TOUCHSCREEN_TAP2UNLOCK
-#include <linux/input/tap2unlock.h>
 #endif
 #endif
 
@@ -523,7 +517,7 @@ static void tpd_create_attributes(struct device *dev, struct tpd_attrs *attrs)
 #ifdef CONFIG_TOUCHSCREEN_PREVENT_SLEEP
 
 static void eros_suspend(struct early_suspend *h) {
-#if defined(CONFIG_TOUCHSCREEN_SWEEP2WAKE) || defined(CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE) || defined(CONFIG_TOUCHSCREEN_TAP2UNLOCK)
+#if defined(CONFIG_TOUCHSCREEN_SWEEP2WAKE) || defined(CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE)
 	bool prevent_sleep = false;
 #endif
 	/*
@@ -541,11 +535,6 @@ static void eros_suspend(struct early_suspend *h) {
 	prevent_sleep = prevent_sleep || (dt2w_switch > 0);
 	dt2w_scr_suspended = true;
 #endif
-#if defined(CONFIG_TOUCHSCREEN_TAP2UNLOCK)
-	prevent_sleep = prevent_sleep || (t2u_switch > 0);
-	t2u_scr_suspended = true;
-	t2u_allow = false;
-#endif
 
 	if (prevent_sleep) {
 		mt_eint_unmask(CUST_EINT_TOUCH_PANEL_NUM);
@@ -555,7 +544,7 @@ static void eros_suspend(struct early_suspend *h) {
 }
 
 static void eros_resume(struct early_suspend *h) {
-#if defined(CONFIG_TOUCHSCREEN_SWEEP2WAKE) || defined(CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE) || defined(CONFIG_TOUCHSCREEN_TAP2UNLOCK)
+#if defined(CONFIG_TOUCHSCREEN_SWEEP2WAKE) || defined(CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE)
 	bool prevent_sleep = false;
 #endif
 #if defined(CONFIG_TOUCHSCREEN_SWEEP2WAKE)
@@ -566,11 +555,7 @@ static void eros_resume(struct early_suspend *h) {
 	prevent_sleep = prevent_sleep || (dt2w_switch > 0);
 	dt2w_scr_suspended = false;
 #endif
-#if defined(CONFIG_TOUCHSCREEN_TAP2UNLOCK)
-	prevent_sleep = prevent_sleep || (t2u_switch > 0) || (t2u_allow == false);
-	t2u_scr_suspended = false;
-	t2u_allow = false;
-#endif
+
 	if (prevent_sleep) {
 		mt_eint_mask(CUST_EINT_TOUCH_PANEL_NUM);
 		/*
@@ -594,6 +579,7 @@ static void eros_resume(struct early_suspend *h) {
 }
 
 #endif
+
 
 /* touch panel probe */
 static int tpd_probe(struct platform_device *pdev)
@@ -713,7 +699,7 @@ static int tpd_probe(struct platform_device *pdev)
 #ifdef CONFIG_EARLYSUSPEND
 #ifdef CONFIG_TOUCHSCREEN_PREVENT_SLEEP
 	if ((g_tpd_drv->suspend != NULL) && (g_tpd_drv->resume != NULL)) {
-		nyx_suspend = g_tpd_drv->suspend;
+ 	 	nyx_suspend = g_tpd_drv->suspend;
 		nyx_resume  = g_tpd_drv->resume;
 		MTK_TS_early_suspend_handler.suspend = eros_suspend;
 		MTK_TS_early_suspend_handler.resume  = eros_resume;
